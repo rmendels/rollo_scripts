@@ -8,6 +8,7 @@ output: html_notebook
 
 ```{r, echo = FALSE}
 library(ggplot2)
+library(plotdap)
 library(rerddap)
 
 ```

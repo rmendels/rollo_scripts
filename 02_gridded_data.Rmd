@@ -18,6 +18,7 @@ library(dplyr)
 library(ggplot2)
 library(plotdap)
 library(rerddap)
+library(rerddapXtracto)
 ```
 
 ### Specify server and protocol
@@ -66,6 +67,22 @@ add_griddap(p, mur, ~analysed_sst, fill = "thermal", maxpixels = 30000, time = i
 
 ![](mur_animation.gif)
 
+### extra example: low-res topography
+
+```{r, warning = FALSE}
+
+wcn_erddap <- "https://coastwatch.pfeg.noaa.gov/erddap/"
+bathy_info <- info("etopo180", url = wcn_erddap)
+latitude <- c(20, 60)
+longitude <- c(-90, -30)
+bathy <- rxtracto_3D(bathy_info,
+                 parameter = 'altitude',
+                 ycoord = latitude,
+                 xcoord = longitude,
+                 )
+
+plotBBox(bathy, plotColor = 'topo', maxpixels = 50000)
+```
 
 
 
