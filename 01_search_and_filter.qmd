@@ -1,0 +1,130 @@
+---
+title: "Rollo_python_scripts"
+format: html
+editor: visual
+---
+
+# Finding datasets of interest
+
+```{r}
+#| echo: false
+# load necesssary libraries
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(rerddap)
+library(plotdap)
+```
+
+We can use ERDDAP's built in search function to find datasets that match a keyword
+
+### Find drifter datasets from OSMC
+
+```{r}
+# use 'rerddap::ed_search()' to search the osmc ERDDAP for "drifter"
+osmc_erddap <- "https://osmc.noaa.gov/erddap/"
+df_osmc <- ed_search("drifter", which = "tabledap", url = osmc_erddap)
+head(df_osmc$info)
+```
+
+### Find ADCP data on the IOOS sensors ERDDAP
+
+```{r}
+# use 'rerddap::ed_search()' to search the IOOS Sensor ERDDAP for "adcp"
+ioos_sensor_erddap <- "https://erddap.sensors.ioos.us/erddap/"
+df_sensor <- ed_search("adcp", which = "tabledap", url = ioos_sensor_erddap)
+head(df_sensor$info)
+```
+
+### Search with allDatasets
+
+For a more sophisticated search, we can use the `allDatasets` dataset from ERDDAP to examine the primary metadata of all datasets.
+
+### Get metadata for IOOS glider datasets
+
+```{r}
+# access from the IOOS Glider DAC using 'rerddap::tabledap()"  the "allDatasets" response - https://gliders.ioos.us/erddap/allDatasets.html
+ioos_gliders_erddap <- "https://gliders.ioos.us/erddap"
+info <- info("allDatasets", url = ioos_gliders_erddap)
+df <- tabledap(info)
+# list the column names to keep
+keep <- c('institution',
+           'minLongitude',
+           'maxLongitude',
+           'minLatitude',
+           'maxLatitude',
+           'minAltitude',
+           'maxAltitude',
+           'minTime',
+           'maxTime')
+# how to do the select in base R
+# df_gliders<- subset(df, select = keep)
+#
+# use 'dplyr::select()' to select desired columns
+df_gliders <- select(df, all_of(keep))
+# unhappy if class "tabledap" remains,  remove it
+class(df_gliders) <- "data.frame"
+# use 'lubridate::as_datetime()' to convert "maxTime" and "minTime" to R datetime objects
+df_gliders$maxTime <- as_datetime(df_gliders$maxTime)
+df_gliders$minTime <- as_datetime(df_gliders$minTime)
+head(df_gliders)
+
+```
+
+### Which gliders have uploaded data in the last 6 hours?
+
+```{r}
+# use 'lubridate::now()' to get present time as an R datetime object, create new column wiht deploy time
+df_gliders$deploy <- now() - df_gliders$maxTime
+# use 'dplyr::filter()' to find deploy time less than 6 hours
+latest_gliders <- filter(df_gliders, (deploy < 6.))
+head(latest_gliders)
+```
+
+### Find datasets from deployments that lasted longer than 90 days
+
+```{r}
+# use 'dplyr::filter()' to find deploy time greater than 90 days
+longest_gliders <- filter(df_gliders, time_length(maxTime - minTime) > 90)
+head(longest_gliders)
+```
+
+### Which glider missions extended to a depth of greater than 150 m in seas north of 70 N?
+
+```{r}
+# use 'dplyr::filter()' to find deploy observations on the latitude/depth range
+deep_gliders <- filter(df_gliders, (maxLatitude >= 70) & (minAltitude < -150))
+head(deep_gliders)
+
+```
+
+```{r}
+# use 'rerddap::tabledap()' to get from 'profile_id', 'time', 'u' from gilder "unit_595-20180804T0000-delayed'
+info <- info("unit_595-20180804T0000-delayed", url = ioos_gliders_erddap)
+alaska_glider <- tabledap("unit_595-20180804T0000-delayed",
+                          fields = c('profile_id', 'time', 'u'),
+                          'time>=2018-09-20',
+                          url = ioos_gliders_erddap
+                   )
+# convert character "NaN" to NA
+alaska_glider$u[alaska_glider$u == "NaN"] <- NA
+# use 'dplyr::filter()' to remove NA
+alaska_glider <- filter(alaska_glider, all_of(!is.na(u)))
+# convert alaska_glider$u to numeric values
+alaska_glider$u <- as.numeric(alaska_glider$u )
+# get parameter long_name and units from the 'info()' call
+ylab = paste(info$alldata$u$value[9], info$alldata$u$value[13])
+# plot using "ggplot()"
+ggplot()  + 
+    geom_point(data = alaska_glider , aes(y = u, x= 1:(length(u))), size = .5) +
+    xlab('Profile') + ylab(ylab) 
+
+```
+
+------------------------------------------------------------------------
+
+### References
+
+IOOS ERDDAP https://gliders.ioos.us/erddap
+
+More info on using ERDDAP's inbuilt search https://ioos.github.io/erddapy/01b-tabledap-output.html

@@ -1,0 +1,62 @@
+---
+title: "04_more_erddap"
+format: html
+editor: visual
+---
+
+# Miscellaneous ERDDAP functionality
+
+```{r}
+#| echo: false
+library(ggplot2)
+library(rerddap)
+
+```
+
+### Get metadata
+
+To see detailed metadata from a dataset, we request the **ncCF** format
+
+```{r}
+
+voto_erddap <- "https://erddap.observations.voiceoftheocean.org/erddap"
+glider_info <- info("nrt_SEA068_M27", url = voto_erddap)
+
+```
+
+### Display vector data
+
+Using some HF Radar from coastwatch
+
+https://coastwatch.pfeg.noaa.gov/erddap/griddap/ucsdHfrW1.html
+
+```{r}
+
+wcn_erddap <- "https://coastwatch.pfeg.noaa.gov/erddap"
+hf_radar_info <- info('ucsdHfrW1', url = wcn_erddap)
+
+```
+
+Coarsen by 10'000 and make a quick plot
+
+```{r}
+
+lat_bound <- hf_radar_info$alldata$latitude$value[3]
+lat_bound <- as.numeric(strsplit(lat_bound, ","))
+lon_bound <- hf_radar_info$alldata$longitude$value[3]
+lon_bound <- as.numeric(strsplit(lon_bound, ","))
+time_bound <- hf_radar_info$alldata$time$value[3]
+time_bound <- as.numeric(strsplit(time_bound, ","))
+stride <- c(1, 100, 100)
+hf_radar <- griddap('ucsdHfrW1',
+                    fields <- c('water_u', 'water_v'),
+                    time = time_bound,
+                    latitude <- lat_bound,
+                    longitude <- lon_bound,
+                    stride = stride,
+                    url = wcn_erddap
+                    )
+
+
+```
+

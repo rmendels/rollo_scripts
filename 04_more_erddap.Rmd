@@ -1,0 +1,127 @@
+---
+title: "04_more_erddap"
+output: html_notebook
+---
+
+
+# Miscellaneous ERDDAP functionality
+
+```{r, echo = FALSE}
+library(ggplot2)
+library(rerddap)
+
+```
+
+### Get metadata
+
+To see detailed metadata from a dataset, use the 'rerddap::info()' function 
+
+```{r}
+
+voto_erddap <- "https://erddap.observations.voiceoftheocean.org/erddap"
+glider_info <- info("nrt_SEA068_M27", url = voto_erddap)
+
+```
+
+### Display vector data
+
+Using some HF Radar from coastwatch
+
+https://coastwatch.pfeg.noaa.gov/erddap/griddap/ucsdHfrW1.html
+
+```{r}
+
+wcn_erddap <- "https://coastwatch.pfeg.noaa.gov/erddap/"
+hf_radar_info <- info('ucsdHfrW1', url = wcn_erddap)
+
+```
+
+Coarsen by 10'000 and make a quick plot
+
+```{r}
+
+lat_bound <- hf_radar_info$alldata$latitude$value[3]
+lat_bound <- as.numeric(unlist(strsplit(lat_bound, ",")))
+lon_bound <- hf_radar_info$alldata$longitude$value[3]
+lon_bound <- as.numeric(unlist(strsplit(lon_bound, ",")))
+#global <- hf_radar_info$alldata$NC_GLOBAL
+#time_bound <- rev(global[ global$attribute_name %in%
+#                   c('time_coverage_end','time_coverage_start'), "value", ])
+time_bound <- c('2023-10-17T12:00:00Z', '2023-10-17T12:00:00Z')
+stride <- c(1, 100, 100)
+hf_radar <- griddap('ucsdHfrW1',
+                    fields = c('water_u', 'water_v'),
+                    time = time_bound,
+                    latitude = lat_bound,
+                    longitude = lon_bound,
+                    stride = stride,
+                    url = wcn_erddap
+                    )
+
+
+```
+
+
+Constrain the data to a smaller region for plotting
+
+```{r}
+lat_bound <- c(48.9, 49.35)
+lon_bound <- c(-123.6, -123.)
+hf_radar <- griddap('ucsdHfrW1',
+                    fields = c('water_u', 'water_v'),
+                    time = time_bound,
+                    latitude = lat_bound,
+                    longitude = lon_bound,
+                    url = wcn_erddap
+                    )
+
+
+
+```
+
+
+### Display satellite data
+
+Pathfinder SST
+
+https://coastwatch.pfeg.noaa.gov/erddap/griddap/erdPH53sstdmday.graph
+
+Obtain information about the dataset
+
+```{r}
+wcn_erddap <- "https://coastwatch.pfeg.noaa.gov/erddap/"
+datasetID <- 'erdPH53sstdmday'
+pathfinder_info <- info(datasetID, url = wcn_erddap )
+
+```
+
+Download the data:
+
+```{r}
+stride <- c(1, 100, 100)
+time_bound <- c('last', 'last')
+lat_bound <- pathfinder_info$alldata$latitude$value[3]
+lat_bound <- as.numeric(unlist(strsplit(lat_bound, ",")))
+lon_bound <- pathfinder_info$alldata$longitude$value[3]
+lon_bound <- as.numeric(unlist(strsplit(lon_bound, ",")))
+parameter <- 'sea_surface_temperature'
+sst <- griddap(pathfinder_info,
+                    fields = parameter,
+                    time = time_bound,
+                    latitude = lat_bound,
+                    longitude = lon_bound,
+                    url = wcn_erddap
+                    )
+# get rid of junk values
+sst$data$sea_surface_temperature[sst$data$sea_surface_temperature < -2] <- NA 
+sst$data$sea_surface_temperature[sst$data$sea_surface_temperature > 40] <- NA 
+
+```
+
+```{r, warnings = FALSE}
+p <- plotdap()
+add_griddap(p, sst, ~sea_surface_temperature, fill = "thermal", maxpixels = 50000) |>
+     print(landmask = TRUE)
+
+```
+
