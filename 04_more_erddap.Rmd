@@ -39,7 +39,7 @@ hf_radar_info <- info('ucsdHfrW1', url = wcn_erddap)
 
 Coarsen by 10'000 and make a quick plot
 
-```{r}
+```{r, warning = FALSE}
 
 lat_bound <- hf_radar_info$alldata$latitude$value[3]
 lat_bound <- as.numeric(unlist(strsplit(lat_bound, ",")))
@@ -55,17 +55,20 @@ hf_radar <- griddap('ucsdHfrW1',
                     time = time_bound,
                     latitude = lat_bound,
                     longitude = lon_bound,
-                    stride = stride,
                     url = wcn_erddap
                     )
-
+p <- plotdap()
+add_griddap(p, hf_radar, ~water_u, maxpixels = 50000)
 
 ```
 
 
+
+
+
 Constrain the data to a smaller region for plotting
 
-```{r}
+```{r, warning = FALSE}
 lat_bound <- c(48.9, 49.35)
 lon_bound <- c(-123.6, -123.)
 hf_radar <- griddap('ucsdHfrW1',
@@ -76,9 +79,39 @@ hf_radar <- griddap('ucsdHfrW1',
                     url = wcn_erddap
                     )
 
+p <- plotdap()
+add_griddap(p, hf_radar, ~water_u, maxpixels = 50000)
 
 
 ```
+
+Plot the water current vectors on the magnitude:
+
+```{r, warning = FALSE}
+ttemp_df <- hf_radar$data
+temp_df$amp <- sqrt(temp_df$water_u^2 + temp_df$water_v^2)
+temp_df$direction <- atan2(temp_df$water_v, temp_df$water_u)
+w <- map_data("worldHires", ylim = lat_bound, xlim = lon_bound)
+my_color <- cmocean('amp')(256)
+ggplot() + 
+  geom_raster(data =temp_df, aes(x = longitude, y = latitude, fill = amp ), interpolate = FALSE) +
+  scale_fill_gradientn(colours = my_color, na.value = NA) + 
+  geom_polygon(data = w, aes(x = long, y = lat, group = group), fill = "grey80") +
+  geom_spoke(data = temp_df, aes(x = longitude, y = latitude, 
+                                 radius = scales::rescale(amp, c(0., .05)),
+                                 angle = direction),
+             arrow = arrow(length = unit(.05, 'inches'))
+  ) +
+  coord_quickmap(xlim = lon_bound, ylim = lat_bound) +
+  theme_bw() + 
+  ylab("latitude") + xlab("longitude")
+
+
+
+```
+
+
+
 
 
 ### Display satellite data
