@@ -10,6 +10,7 @@ output: html_notebook
 library(ggplot2)
 library(plotdap)
 library(rerddap)
+library(scales)
 
 ```
 
