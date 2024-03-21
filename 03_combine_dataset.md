@@ -1,36 +1,48 @@
----
-title: "03_combine_dataset"
-output: github_document
----
-
+03_combine_dataset
+================
 
 Combine results from multiple ERDDAPs
 
-In this notebook we use data from one ERDDAP (OSMC animal-borne sensors) to make subsequent queries to other ERDDAPs supplying Argo and satellite data
+In this notebook we use data from one ERDDAP (OSMC animal-borne sensors)
+to make subsequent queries to other ERDDAPs supplying Argo and satellite
+data
 
-```{r}
-#| echo: false
-library(dplyr)
-library(ggplot2)
-library(lubridate)
-library(mapdata)
-library(mapproj)
-#library(plotdap)
-library(rerddap)
-```
+    ## 
+    ## Attaching package: 'dplyr'
 
-1. MEOPS animals
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     filter, lag
 
-We can use ERDDAP's built in search function to find datasets that match a keyword. Let's find some animal borne sensor data
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     intersect, setdiff, setequal, union
 
-```{r}
+    ## 
+    ## Attaching package: 'lubridate'
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     date, intersect, setdiff, union
+
+    ## Loading required package: maps
+
+1.  MEOPS animals
+
+We can use ERDDAP’s built in search function to find datasets that match
+a keyword. Let’s find some animal borne sensor data
+
+``` r
 # use ERDDAP search through 'rerddap::ed_search()'
 osmc_erddap <- "https://osmc.noaa.gov/erddap/"
 animals <- ed_search("animal", which = "tabledap", url = osmc_erddap)
 head(animals$info)
 ```
 
-```{r}
+    ##                  title    dataset_id
+    ## 1 meop animal profiles MEOP_profiles
+
+``` r
 # use ERDDAP search through 'rerddap::tabledap()' 
 # to obtain all "Southern ellie  records
 df_MEOP_info <- info("MEOP_profiles", url = osmc_erddap )
@@ -42,6 +54,11 @@ df_MEOP <- tabledap(df_MEOP_info,
                'latitude<=-60',
                 url = osmc_erddap
                )
+```
+
+    ## info() output passed to x; setting base url to: https://osmc.noaa.gov/erddap
+
+``` r
 # convert latitude and longitude to numeric
 df_MEOP$latitude <- as.numeric(df_MEOP$latitude)
 df_MEOP$longitude <- as.numeric(df_MEOP$longitude)
@@ -51,6 +68,23 @@ df_MEOP$time <- as_datetime(df_MEOP$time)
 df_MEOP$year <- as.factor(year(df_MEOP$time))
 df_MEOP$source <- rep('MEOP', length(df_MEOP$time))
 head(df_MEOP)
+```
+
+    ## <ERDDAP tabledap> MEOP_profiles
+    ##    Path: [/var/folders/46/jyz1mm5x5bvbf59b5g8f7f580000gn/T//RtmpfcQprC/R/rerddap/ce5619e2443aa78b7f820072c0db77e6.csv]
+    ##    Last updated: [2024-03-20 20:48:18.710922]
+    ##    File size:    [1.84 mb]
+    ## # A tibble: 6 × 6
+    ##   latitude longitude time                species        year  source
+    ##      <dbl>     <dbl> <dttm>              <chr>          <fct> <chr> 
+    ## 1    -63.0     -60.2 2013-12-08 01:12:00 Southern ellie 2013  MEOP  
+    ## 2    -63.1     -60.5 2013-12-08 05:33:00 Southern ellie 2013  MEOP  
+    ## 3    -63.1     -60.6 2013-12-08 06:43:00 Southern ellie 2013  MEOP  
+    ## 4    -63.1     -60.9 2013-12-08 09:41:00 Southern ellie 2013  MEOP  
+    ## 5    -63.2     -61.0 2013-12-08 10:51:00 Southern ellie 2013  MEOP  
+    ## 6    -63.2     -61.1 2013-12-08 14:48:00 Southern ellie 2013  MEOP
+
+``` r
 # plot using ggplot2
 # set plot limits
 xlim <- c(-90, -60)
@@ -65,14 +99,16 @@ p <- ggplot() +
     theme_bw() + 
     ylab("latitude") + xlab("longitude")
 p  
+```
 
-```    
+![](03_combine_dataset_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-2. Add argo data
+2.  Add argo data
 
-We use a bounding box from the lon, lat and time of the seal data to look for co-located Argo floats on the ifremer ERDDAP
+We use a bounding box from the lon, lat and time of the seal data to
+look for co-located Argo floats on the ifremer ERDDAP
 
-```{r}
+``` r
 argo_erddap <- 'https://erddap.ifremer.fr/erddap/'
 # get info for the argo data
 argo_erddap_info <- info("ArgoFloats", url = argo_erddap)
@@ -96,6 +132,19 @@ df_argo <- tabledap(argo_erddap_info,
                     lon_max_constraint,
                     url = argo_erddap 
                     )
+```
+
+    ## info() output passed to x; setting base url to: https://erddap.ifremer.fr/erddap
+
+    ## Warning in set_units(temp_table, dds): NAs introduced by coercion
+
+    ## Warning in set_units(temp_table, dds): NAs introduced by coercion
+
+    ## Warning in set_units(temp_table, dds): NAs introduced by coercion
+
+    ## Warning in set_units(temp_table, dds): NAs introduced by coercion
+
+``` r
 # convert latitdue and longitude to numerics
 df_argo$latitude <- as.numeric(df_argo$latitude)
 df_argo$longitude <- as.numeric(df_argo$longitude)
@@ -114,13 +163,13 @@ ggplot() +
     coord_quickmap(xlim = xlim, ylim = ylim) +
     theme_bw() + 
     ylab("latitude") + xlab("longitude")
-
 ```
+
+![](03_combine_dataset_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 now compare the two datasets across time:
 
-```{r}
-
+``` r
 xlim <- c(-90, -60)
 ylim <- c(-80, -60)
 w <- map_data("worldHires", ylim = ylim, xlim = xlim)
@@ -136,15 +185,16 @@ ggplot() +
     scale_color_manual(values=c('argo' = 'red', 'MEOP' ='black')) +
     coord_quickmap(xlim = xlim, ylim = ylim)  +
     theme_bw() 
-             
+```
 
-```  
+![](03_combine_dataset_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
-3. Gridded SST
+3.  Gridded SST
 
-Finally, we get some matching JPL reanalysis SST data from the Coastwatch West Coast Node (wcn) ERDDAP
+Finally, we get some matching JPL reanalysis SST data from the
+Coastwatch West Coast Node (wcn) ERDDAP
 
-```{r}
+``` r
 wcn_erddap <- 'https://coastwatch.pfeg.noaa.gov/erddap'
 # get info for the MUR data
 mur_info <- info('jplMURSST41', url = wcn_erddap)
@@ -163,12 +213,13 @@ sst <- griddap(mur_info,
                longitude = longitude,
                url = wcn_erddap
                )
-
 ```
+
+    ## info() output passed to x; setting base url to: https://coastwatch.pfeg.noaa.gov/erddap
 
 # plot against first time
 
-```{r, warning = FALSE}
+``` r
 xlim <- c(-90, -60)
 ylim <- c(-80, -60)
 first_time <- filter(sst$data, time == "2005-02-13T09:00:00Z")
@@ -180,12 +231,11 @@ ggplot(data = first_time, aes(x = longitude, y = latitude, fill = analysed_sst))
     scale_fill_gradientn(colours = mycolor, na.value = NA) +
     theme_bw() + ylab("latitude") + xlab("longitude") +
     coord_quickmap(xlim = xlim, ylim = ylim) 
-
-
 ```
 
+![](03_combine_dataset_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
-```{r, warning = FALSE}
+``` r
 xlim <- c(-90, -60)
 ylim <- c(-80, -60)
 w <- map_data("worldHires", ylim = ylim, xlim = xlim)
@@ -201,24 +251,23 @@ ggplot() +
     scale_color_manual(values=c('argo' = 'red', 'MEOP' ='black')) +
     coord_quickmap(xlim = xlim, ylim = ylim)  +
     theme_bw() 
-
-
-
 ```
 
+![](03_combine_dataset_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
+We will cover more on the use of the griddap protocol in the next
+session
 
-
-We will cover more on the use of the griddap protocol in the next session
-
-Bonus: change the species to 'Crabeater seal' and re-run the notebook
+Bonus: change the species to ‘Crabeater seal’ and re-run the notebook
 
 References
 
-MEOP data from https://meop.net
+MEOP data from <https://meop.net>
 
-Argo data from ifremer https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.html
+Argo data from ifremer
+<https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.html>
 
-SST reanalysis from coastwatch https://coastwatch.pfeg.noaa.gov/erddap
+SST reanalysis from coastwatch <https://coastwatch.pfeg.noaa.gov/erddap>
 
-More info on using ERDDAP's inbuilt search https://ioos.github.io/erddapy/01b-tabledap-output.html
+More info on using ERDDAP’s inbuilt search
+<https://ioos.github.io/erddapy/01b-tabledap-output.html>
